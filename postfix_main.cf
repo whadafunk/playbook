@@ -1,0 +1,317 @@
+### Postfix Main configuration template ###
+### Author: daniel grigore ###
+
+### BASIC STUFF       ###
+
+# The compatibility level below determines what default settings will Postfix use
+# for main.cf and master.cf
+compatibility_level = 2
+
+command_directory = /usr/sbin
+daemon_directory = /usr/lib/postfix/sbin
+data_directory = /var/lib/postfix
+
+
+mydomain = sandbox.lab
+myhostname = mx.sandbox.lab
+# myorigin is appended as a prefix for mails originated locally
+# or for mails that have incomplete sender address
+myorigin = sandbox.lab
+
+smtpd_banner = $myhostname ESMTP $mail_name (Debian/GNU)
+
+# The unprivileged processes spawned by master are inheriting the following uid
+mail_owner = postfix
+
+# the appending is controlled by the following two parameters
+append_at_myorigin = yes
+append_dot_mydomain = yes
+
+# the following specifies the client authorized networks
+mynetworks_style = subnet | class | host
+# if you configure a specific network like below it will override mynetworks_style
+mynetworks = 192.168.1.0/24
+
+# inet interfaces parameter does two things: designates the smtp binding ips
+# and designates local address class members
+inet_interfaces = all | loopback-only | 192.168.1.1
+proxy_interfaces = 193.231.236.10
+
+### SASL AUTHENTICATION ###
+
+# Although sasl type is cyrus by default, you can specify here dovecot 
+smtpd_sasl_type = cyrus
+smtpd_sasl_auth_enable = yes
+# Extend the support of sasl for legacy/older clients
+broken_sasl_auth_clients = yes
+smtpd_sasl_security_options = noanonymous
+smtpd_sasl_tls_security_options = $smtpd_sasl_security_options
+# Offer SASL authentication only after TLS session has been established
+smtpd_tls_auth_only = yes
+smtpd_sasl_path = /etc/postfix/
+smtpd_sasl_application_name = smtpd
+
+
+### SMTPD TLS SUPPORT   ###
+
+
+
+### LOCAL ADDRESS CLASS ###
+
+mydestination = sandbox.lab
+local_recipient_maps = unix:passwd.byname
+alias_maps = hash:/etc/aliases
+alias_database = /etc/aliases
+local_transport = local:$myhostname
+
+# if there are no aliases or .forward files to process by the local agent, but the user is
+# defined in the local unix passwd database,
+# the delivery will be handled by the transport agent specified with the 
+# following two parameters; the message is actually handed to mailbox_transport by the local agent itself
+mailbox_transport_maps = hash:/path/to/localtransportmaps
+mailbox_transport = lmtp:remote.lab:254
+
+# if the recipient address is not found by the local_transport 
+# then the message is handed off alltogether to the agent specified by fallback_transport
+fallback_transport_maps = hash:/etc/postfix/fallback_maps
+fallback_transport = agent:host:port
+
+# home_mailbox is overriding mail_spool_directory, and both directives
+# define where in the filesystem the mailboxes can be found
+# if you specify the trailing slash, it means the mailbox is in maildir format
+mail_spool_directory = /var/spool/mail | /var/spool/mail/
+home_mailbox = mbox | /maildir | /maildir/
+
+# where the local agent should find .forward files; supports names expansion
+forward_path = $user/$home/$recipient/$domain
+allow_mail_to_files = alias, forward, include
+allow_mail_to_commands = alias, forward, include
+
+# the luser_relay implements sort of a catch_all functionality for the local address class
+# in alias_maps we cannot have a lookupkey with @, so we use luser_relay instead
+# we can use this feature for journalisation
+luser_relay = john.doe@sandbox.lab | $user@$other.host | $local@$other.host
+
+# normally the local agent is using the privileges of the recipient to deliver the message, except when 
+# the delivery is for an external file or command, in which case default_privs is used
+default_privs = nobody
+
+# the precedence of local delivery features from high to low is:
+# aliases, .forward, mailbox_transport_maps, mailbox_transport, mailbox_command_maps, mailbox_command,
+# home_mailbox, mail_spool_directory, fallback_transport_maps, fallback_transport
+
+
+
+### VIRTUAL ALIAS CLASS   ###
+
+virtual_alias_domains = other.lab
+# The virtual aliases are triggered before queue by the cleanup process, for all email classes
+# So, if you're not using local transport, you will use this for your aliasing needs
+# One thing to remember though, in alias maps, you can use a catch-all @ entry
+virtual_alias_maps = hash:/etc/postfix/virtual_aliases
+virtual_address_length_limit = 1000
+virtual_alias_expansion_limit = 1000
+virtual_alias_recursion_limit = 1000
+
+
+### VIRTUAL MAILBOX CLASS ###
+
+virtual_mailbox_domains = virtual.lab
+virtual_mailbox_maps = hash:/etc/postfix/virtual_mailboxes
+virtual_transport = lmtp:unix:/patch/name | lmtp:hostname:port
+virtual_mailbox_base = /var/spool/mail | /var/spool/mail/
+virtual_alias_maps = hash:/etc/postfix/virtual_aliases
+virtual_minimum_uid = 500
+
+# the two lines below specify that all the virtual mailboxes are owned by the same fixed uid and gid
+virtual_uid_maps = static:5000
+virtual_git_maps = static:5000
+
+
+
+### VIRTUAL RELAY CLASS ###
+
+relay_domains = relay.lab
+relay_recipient_maps = hash:/etc/postfix/relay_recipients
+# you can specify relay transport with nexthop or not. If you 
+# don't specify a next hop, DNS querry will be used to find one
+relay_transport = smtp:[gigi.com]
+
+### DEFAULT CLASS       ###
+
+# messages that do not fall under a specific class are delivered by the default transport
+# which actually means, are destined for the greater internet outside
+default_transport = smtp
+# if you have an extra mail gw towards internet specify that with relayhost
+relayhost = domain.lab:25 | [mx.domain.lab]:25
+
+
+### REWRITING (HEADER & ENVELOPE) ###
+
+# It's normal to rewrite headers to local posted email; choose only the categories that seems right
+local_header_rewrite_clients = permit_inet_interfaces, permit_mynetworks, permit_sasl_authenticated, permit_tls_clientcerts, static:all
+# An empty value here will prevent remote header rewrite
+remote_header_rewrite_domain = invalid.domain
+
+# Canonical maps allow for header and envelope rewrite of both recipient and sender
+canonical_maps = hash:/etc/postfix/canonical_maps
+canonical_classes = envelope_sender, envelope_recipient, header_sender, header_recipient
+# You can get selective if you want; change only the sender for example
+recipient_canonical_maps = hash:/etc/postfix/recipient_canonical_maps
+recipient_canonical_classes = envelope_recipient, header_recipient
+sender_canonical_maps = hash:/etc/postfix/sender_canonical_maps
+sender_canonical_classes = envelope_sender, header_sender
+# Masquerade is like limited automated rewriting.
+masquerade_domains = sandbox.lab, !nothisone.sandbox.lab
+masquerade_exceptions = nothisone.sandbox.lab
+masquerade_classes = envelope_sender, header_sender, envelope_recipient, header_recipient
+
+
+
+### BUILT IN CONTENT FILTER      ###
+
+header_checks = regexp:/etc/postfix/header_checks
+
+### SECURITY AND RELAY CONTROLS  ###
+
+smtpd_helo_required = yes
+strict_rfc821_envelopes = yes
+disable_vrfy_command = yes
+
+# Delaying the reject addresses the following:
+# Some clients that do not support terminating the SMTP session early in the conversation
+# Get the change to collect more logs about the rejected client
+# Offer the means for writing more complex policies
+smtpd_delay_reject = yes
+
+unknown_address_reject_code = 554
+unknown_hostname_reject_code = 554
+unknown_client_reject_code = 554
+
+###   SMTP CLIENT RESTRICTIONS   ###
+# Dont' forget about the access lookup values:
+# OK, REJECT, DUNNO, DEFER, DISCARD, FILTER, PREPEND, BCC, DEFER_IF_REJECT, DEFER_IF_PERMIT, 4NN, 5NN
+# Or the generic parameters which can be used directly:
+# reject, defer, defer_if_reject, defer_if_permit, check_policy_service, reject_unauth_pipelining, warn_if_reject
+
+smtpd_client_restrictions =  	
+# Match on client ip/hostname/parent_hostname/networks
+# Also you have variants for a, mx, ns, and their reverse corespondents
+	check_client_access hash:/etc/postfix/client_access, 
+# Match on sasl authenticated user name
+	check_sasl_access hash:/etc/postfix/sasl_access, 
+# IP's included in mynetworks and inet_interfaces get a pass here
+# Also these ip conditions also work for helo
+	permit_mynetworks, 
+	permit_inet_interfaces, 
+# SASL authenticated clients get a pass here also
+	permit_sasl_authenticated, 
+	permit_tls_all_clientcers, 
+# You can specify more than one reject_rbl_client restriction
+	reject_rbl_client zen.spamhaus.org,
+# Whitelist your clients here; most likely you will host your own dns server for this
+	permit_dnswl_client wl.packets.lab,
+# Very restrictive condition. Both normal and reverse DNS must exist
+# and match with the client reported ip and hostname
+	reject_unknown_client_hostname,
+# A little more permissive variant of the above. Only a reverse DNS entry should exist
+	reject_unknown_reverse_client_hostname		
+#--------------------------------------------------------------------------------------#
+
+# SMTP HELO RESTRICTIONS #
+smtpd_helo_restrictions = 
+# Match on helo hostname and parent domains;
+# Also we have variants for a, mx, and ns
+	check_helo_access hash:/etc/postfix/helo_access,
+# Invalid HELO hostnames
+	reject_invalid_helo_hostname,
+# No A or MX records found in DNS for the hostname
+	reject_unknown_helo_hostname,
+	reject_non_fqdn_helo_hostname,
+# hostname lookup in a blacklist; you can add multiple commands
+	reject_rhsbl_helo_rbl_domain = rhsbl.spamhaus.org
+#--------------------------------------------------------------------------------------#	
+smtpd_sender_login_maps = hash:/etc/postfix/sender_login_maps
+
+# SMTP SENDER RESTRICTIONS #
+smtpd_sender_restrictions = 
+# Match on MAIL FROM address, domain, parent domains, or @localpart
+# We also have the a, mx, and ns variants
+	check_sender_access hash:/etc/postfix/sender_access,
+# Reject if MAIL FROM matches a key in smtpd_sender_login_maps but the user is not logged in
+# Reject if MAIL FROM matches a key in smtpd_sender_login_maps but the mapped value doesn't match user name
+	reject_sender_login_mismatch,
+# Enforce the sender login mismatch only for logged in users who's user name doesn't match MAIL FROM
+	reject_authenticated_sender_login_mismatch,
+# Enfortce the sender login mismatch only for matching MAIL FROM who are not logged
+	reject_unauthenticated_sender_login_mismatch,
+	reject_known_sender_login_mismatch,
+	reject_non_fqdn_sender,
+# Check the MAIL FROM domain in a blacklist
+	reject_rhsbl_sender rhsbl.spamhaus.org
+# Check if the address in MAIL FROM is in the list of valid recipients for its domain class
+	reject_unlisted_sender,
+# Reject senders who's MAIL FROM domain doesn't have A or MX record
+ 	reject_unknown_sender_domain
+# Verify the existence of the sender mailbox
+	reject_unverified_sender
+
+# SMTP RECIPIENT RESTRICTIONS #
+smtpd_recipient_restrictions =
+# Match on RCPT TO address, domain, parent domains, or @localpart
+# We also have the a, mx and ns versions of access_map
+	check_recipient_access hash:/etc/postfix/recipient_access,
+# Authorized destinations are all the local, virtual_alias, virtual_mailbox and relay classes
+	permit_auth_destination,
+	reject_unauth_destination,
+	defer_unauth_destination,
+	permit_mx_backup,
+	reject_non_fqdn_recipient,
+# Check the RCPT TO domain for a valid DNS A or MX record
+	reject_unknown_recipient_domain,
+# Enforces the local_recipient_maps, virtual_mailbox_maps, relay_recipient_maps and virtual_alias_maps
+	reject_unlisted_recipient,
+# Verify the RCPT TO mailbox existence
+	reject_unverified_recipient
+
+# Enforcing the recipient maps even if the corresponding parameter from smtpd_recipient_restrictions is off
+smtpd_reject_unlisted_recipient = yes
+smtpd_reject_unlisted_sender = no
+
+# relay_restictions and data_restictions get most of the parameters from client/helo/recipient restrictions
+
+# SMTP RELAY RESTRICTIONS #
+smtpd_relay_restrictions =
+
+# SMTP DATA RESTRICTIONS #
+smtpd_data_restrictions = 
+
+######  NOTIFICATION CONFIGURATION ######
+
+# First we enable the notification classes we are interested in
+notify_classes = resource, software, bounce, 2bounce, protocol, delay, policy
+
+# Then we specify the address for each notification class
+
+# Send postmaster the headers of bounced mail, and transcripts of the SMTP session
+bounce_notice_recipient = postmaster
+# If the undeliverable notification cannot be sent to the originator, inform the postmaster
+2bounce_notice_recipient = postmaster
+# Send to postmaster copies of the header of delayed mail (mail waiting in queue for a specific condition to end)
+delay_notice_recipient = postmaster
+# Notifications about mail rejected for policy reasons (UCE policy)
+policy_notice_recipient = postmaster
+# Client or server protocol errors
+# The last four notification classes (policy, protocol, resource and software)
+# can be replaced by error_notice_recipient as below
+error_notice_recipient = postmaster
+protocol_notice_recipient = postmaster
+resource_notice_recipient = postmaster
+software_notice_recipient = postmaster
+ 
+
+
+
+
+
+
