@@ -60,17 +60,20 @@ If you want a more sophisticated SSL configuration you can configure things like
 * SSL Versions
 * Configure SSL Client Features (like loading one or more CA)
 
->*SSLRequireSSL On*  
 >*SSLCertificateChainFile /etc/ssl/cert/server_chain.crt*  
->*SSLProtocol all -SSLv3, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3*  
+>*SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1 -TLSv1.2 -TLSv1.3*  
 >*SSLCipherSuites HIGH:!aNull:!MD5:+MEDIUM:+LOW:+EXP:+eNULL*  
 >*SSLSessionCacheTimeout 300*  
 ===========================================================  
+
+*The settings below are usually configured generically in the ssl module config*
+
+>*SSLRequireSSL On*  
 >*SSLSessionCache "shmcb:logs/ssl_cache"*  
 >*SSLUseStapling On*  
 >*SSLStaplingCache "shmcb:logs/ssl_stapling"*  
 >*SSLStaplingResponderTimeout 10*  
->*SSLStaplingReturnResponderError On*  
+>*SSLStaplingReturnResponderErrors On*  
 >*SSLStaplingFakeTryLater On*   
 
 Of course, all of the ssl settings described above can be placed inside a VirtualHost directive
