@@ -1,29 +1,11 @@
-; There are a couple of lesser known parameters of the zone file
-; and those are the TTL that can be set both generic or per each resource
-; and ORIGIN which if not specified, defaults to the zone name as
-; declared in the named.conf file 
-; Origin is appended to any owner attribute that is not fully qualified 
-; meaning is not having a final dot at the end.
-; Records that do not have the owner explicit specified, will 
-; use the origin
-; Also, if you want to use origin for the owner of the record 
-; a common practice is to use the "@" symbol
-; Pay special attention if you end the owner with a final dot "."
-; cause if you use a final dot, the origin is not appended anymore
-
-; a record general syntax looks like this:
-; owner.subdomain	TTL	CLASS	TYPE	VALUE
-; For the mx you need to also specify a priority
-; owner.subdomain	TTL	IN	MX	10	VALUE
-
 $TTL 300 ; this is the default value
-$ORIGIN	0.168.192.in-addr.arpa
-
-	IN	SOA	ns.abc.com email_admin.abc.com (
+$ORIGIN	0.168.192.in-addr.arpa.
+@	IN	SOA	ns.abc.com email_admin.abc.com (
 			100	; Serial
 			7200	; Refresh
 			3600	; Retry
 			432000	; Expire
 			86400)	; Minimum
 
+@	IN	NS	ns.abc.com.
 1	IN	PTR	test.abc.com.
