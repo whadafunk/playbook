@@ -1,0 +1,26 @@
+
+Apart from configuration inside main.cf, you also need to take care of the configuration file for the sasl library. 
+The way this works is that smtp/smtpd is sending a request to the sasl library with the name of the application/service needing authentication, and the library is using that name to construct a path/filename where to find the name of the configuration file for that particular application/service.
+
+Is this the config file where we specify mechanisms and methods for the SASL authentication:
+
+pwcheck_method: salsauthd, auxprop, pwcheck
+auxprop_plugin: sasldb, sql, ldapdb
+mech_list: PLAIN LOGIN DIGEST-MD5 CRAM-MD5 GSSAPI ANONYMOUS OTP
+log_level: 1 - 7
+sql_engine: mysql, pgsql, sqlite
+slq_hostnames: host:[port]
+sql_user
+sql_passwd
+sql_database
+sql_select: SELECT UserPassword from email.credentials where AccountName = '%u' and Domain = '%r'
+sql_usessl: yes | no
+SASL has two small utilities for testing (sample-server and sample-client)
+Sample server sends sample as application_name by default, but it can be configured
+
+
+If you want to use local users with sasldb, then you have a couple of utilities to create and manage users
+
+saslpasswd2 (-c create, -d disable, -f sasldb, -a appname, -u domain)
+sasldblistusers2 -f sasldb
+
