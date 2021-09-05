@@ -1,5 +1,5 @@
 ###                        POSTFIX MAIN CONFIGURATION TEMPLATE                       ###
-### THIS IS A SIMPLE POSTFIX CONFIGURATION WITHOUT A SEPARATED DAEMON FOR SUBMISSION ###
+### THIS IS A SIMPLE POSTFIX CONFIGURATION WITH A SEPARATED DAEMON FOR SUBMISSION    ###
 ### IT IS DELIVERING MAIL TO LOCAL ACCOUNT MAILBOXES AND IS NOT USING HEAVY SECURITY ###
 ### WHERE THERE ARE MULTIPLE OPTIONS AVAILABLE FOR A PARAMETER, THE ONE THAT APPEARS ###
 ### FIRST WOULD BE THE DEFAULT OPTION                                                ###
@@ -13,13 +13,14 @@ compatibility_level = 2
 # The following paths work just fine with their default values; They are mentioned for referrence only.
 # All the post... commands are found here: postconf, postdrop, postqueue, postsuper, postmap, postfix
 #command_directory=/usr/sbin
+
 # The postfix daemons would be: smtpd, qmqpd, lmtpd, pickup, postscreen, qmgr, verify, local, virtual, cleanup, bounce, master
 #daemon_directory=/usr/libexec/postfix
+
 # The data directory is not the spool directory. In the data directory we have pid, and lock files mostly
 #data_directory=/var/lib/postfix
 #config_directory=/etc/postfix
-#queue_directory=/var/spool/postfix ### THIS IS A READONLY PARAMETER ####
-default_database_type = hash
+#default_database_type = hash
 
 # The mail system name that is displayed in Received: headers, in the SMTP greeting banner, and in bounced mail.
 mail_name=PostfixSrv
@@ -27,8 +28,6 @@ mail_version=3.5.X
 smtpd_banner=$myhostname ESMTP $mail_name (Custom/GNU)
 
 
-append_at_myorigin = yes
-append_dot_mydomain = yes
 
 mydomain = sandbox.lab
 myhostname = mx.sandbox.lab
@@ -45,17 +44,23 @@ myorigin = $myhostname
 #proxy_interfaces =
 #smtp_bind_address =
 #lmtp_bind_address =
+
+# Attempt to look up the remote SMTP client hostname, and verify that the name matches the client IP address.
+# A client name is set to "unknown" when it cannot be looked up or verified, or when name lookup is disabled.
+# Turning off name lookup reduces delays due to DNS lookup and increases the maximal inbound delivery rate.
 smtpd_peername_lookup = yes
 inet_protocols = ipv4
 
 # The unprivileged processes spawned by master are inheriting the following uid
 mail_owner = postfix
 # normally the local agent is using the privileges of the recipient to deliver the message, except when 
-# the delivery is for an external file or command, in which case default_privs is used
+# the delivery is for an external file or command, in which case the owner of the file or alias owner
+# is used, but if that owner is root, it falls back to default_privs
 default_privs = nobody
 setgid_group = postdrop
 
 ################             LOGGING              ###############
+
 
 syslog_facility = mail
 syslog_name = ${multi_instance_name?{$multi_instance_name}:{postfix}}
@@ -67,27 +72,40 @@ syslog_name = ${multi_instance_name?{$multi_instance_name}:{postfix}}
 #Service name is used especially in master.cf with syslog_name, to distinguish specific daemon logging
 #service_name (read-only)
 
-### SMTP CLIENT SASL AUTHENTICATION ###
+
+################   SMTP CLIENT SASL AUTHENTICATION  ################
 
 smtp_sasl_auth_enable = no
 smtp_sasl_type = cyrus
-#Postfix SMTP client lookup tables with one username:password entry per sender, remote hostname or next-hop domain. 
+
+# Postfix SMTP client lookup tables with one username:password entry per sender, remote hostname or next-hop domain. 
 #smtp_sasl_password_maps = btree:/etc/postfix/sasl/smtp_sasl_password_maps
-#prevent repeated SASL authentication failures with the same remote SMTP server hostname, username and password.
+
+# Prevent repeated SASL authentication failures with the same remote SMTP server hostname, username and password.
 #smtp_sasl_auth_cache_name = btree:/var/lib/postfix/smtp_sasl_auth_cache
+
+# From the list of supported mechanism from server and client, restrict even more to the ones here
 #smtp_sasl_mechanism_filter = plain, login, !gssapi
+
+# You can also restrict mechanisms generically by specifying categories, like below
 #smtp_sasl_security_options = noplaintext,noanonymous,noactive,nodictionary
 #smtp_sasl_tls_security_options = $smtp_sasl_security_options
+
+# A helper for the sasl library to find the config file
 #smtp_sasl_path =
 
-### SMTPD  SERVER SASL AUTHENTICATION ###
+
+###############    SMTPD  SERVER SASL AUTHENTICATION   ##############
 
 smtpd_sasl_auth_enable = no
 smtpd_sasl_type = cyrus
 broken_sasl_auth_clients = yes
-#smtpd_sasl_security_options = noanonymous,noplaintext,noactive,nodictionary
+
+# Restrict the list of mechanisms offered by smtpd
+#smtpd_sasl_mechanism_filter = !external, static:rest
+#smtpd_sasl_security_options = noanonymous, noplaintext, noactive, nodictionary
 #smtpd_sasl_tls_security_options = $smtpd_sasl_security_options
-smtpd_tls_auth_only =
+smtpd_tls_auth_only = yes
 smtpd_sasl_local_domain =
 # Specify zero or more directories separated by a colon character, or an empty value to use Cyrus SASL's built-in search path. 
 cyrus_sasl_config_path =
@@ -96,14 +114,13 @@ smtpd_sasl_path = smtpd
 #smtpd_sasl_application_name = smtpd
 # The service name that is passed to the SASL plug-in that is selected with smtpd_sasl_type and smtpd_sasl_path. 
 smtpd_sasl_service = smtp
-#Report the SASL authenticated user name in the smtpd Received message header. 
+# Report the SASL authenticated user name in the smtpd Received message header. 
 smtpd_sasl_authenticated_header = yes
-#Do not offer AUTH support to the specified networks bellow
+# Do not offer AUTH support to the specified networks bellow
 smtpd_sasl_exception_networks =
 
-### ============================================================================= ###
 
-### SMTP/D TLS SUPPORT   ###
+###########        SMTP/D TLS SUPPORT            ##########
 
 #tls_high_cipherlist (default: see "postconf -d" output)
 #tls_low_cipherlist (default: see "postconf -d" output)
@@ -115,67 +132,89 @@ smtpd_sasl_exception_networks =
 #	PRIORITIZE_CHACHA
 #tls_append_default_CA = no
 
-### SMTPD TLS OPTIONS ###
 
-#smtpd_use_tls = no
-#smtpd_tls_wrappermode = no
+###########         SMTPD TLS OPTIONS             #########
+
+#smtpd_use_tls = no ***Legacy opportunistic TLS option
 #smtpd_enforce_tls = no  ***Legacy option; You should use instead smtpd_tls_security_level
+# Request that the Postfix SMTP client connects using the legacy SMTPS protocol TCP 465 
+#smtpd_tls_wrappermode = no
 #smtpd_tls_security_level = none | may | encrypt
-#smtpd_tls_CAfile = /etc/postfix/pki/ca.cer
+# CA certificates of root CAs trusted to sign either remote SMTP client certificates or intermediate CA certificates.
+#smtpd_tls_CAfile = /etc/postfix/pki/ca.pem
+# The names of the files in the CA folder needs to be hashed with c_rehash
 #smtpd_tls_CApath = /etc/postfix/pki/ca/
-#smtpd_tls_cert_file = /etc/postfix/pki/packets.lab.cer
-#smtpd_tls_key_file = /etc/postfix/pki/packets.lab.key
+# The remote client should receive from the server its certificate along with the intermediary certificates
+# up to the issuing CA, so a concatenated file should be specified here
+# Create the server.pem file with "cat server_cert.pem intermediate_CA.pem root_CA.pem > server.pem". 
+# You you have the CAfile or CApath configured already, then you can skip concatenating the CA here
+# One thing to notice, is that you specify the CAfile or CAPath, that also have the effect of the server
+# trusting client certificates signed by that authority
+# This file may also contain the Postfix SMTP server private RSA key.
+#smtpd_tls_cert_file = /etc/postfix/pki/server.pem
+# The key file may be combined with the Postfix SMTP server RSA certificate file specified with $smtpd_tls_cert_file.
+#smtpd_tls_key_file = $smtpd_tls_cert_file
 # Postfix ≥ 3.4.  Preferred configuration interface.  Each file
-    # starts with the private key, followed by the corresponding
-    # certificate, and any intermediate issuer certificates. The root CA
-    # cert may also be needed when published as a DANE trust anchor.
-    #
-    # smtpd_tls_chain_files =
-    #   /etc/postfix/rsa.pem,
-    #    /etc/postfix/ecdsa.pem,
-    #    /etc/postfix/ed25519.pem,
-    #    /etc/postfix/ed448.pem
+# starts with the private key, followed by the corresponding
+# certificate, and any intermediate issuer certificates. The root CA
+# cert may also be needed when published as a DANE trust anchor.
+#
+# smtpd_tls_chain_files =
+#   /etc/postfix/rsa.pem,
+#    /etc/postfix/ecdsa.pem,
+#    /etc/postfix/ed25519.pem,
+#    /etc/postfix/ed448.pem
+
 #smtpd_tls_ccert_verifydepth = 9
+# If you want to use ccert_maps, relay_clientcerts, or require_ccerts you need to aks for it first
 #smtpd_tls_ask_ccert = no
 # With mandatory TLS encryption only, require a trusted remote SMTP client certificate in order 
 # to allow TLS connections to proceed. This option implies "smtpd_tls_ask_ccert = yes". 
 #smtpd_tls_req_ccert = no
+# The digest used int ccert_access_maps and relay_clientcerts
+# Here you need the certificate digest or its public key digest
+# openssl x509 -noout -fingerprint -sha256 -in cert.pem
+# openssl x509 -in cert.pem -noout -pubkey | openssl pkey -pubin -outform DER | openssl dgst -sha256 -v
+#smtpd_tls_fingerprint_digest = sha256 | md5 | sha1 | sha512
 #smtpd_tls_protocols = !SSLv2, !SSLv3, TLSv1, TLSv1.1, TLSv1.2, TLSv1.3
 #smtpd_tls_mandatory_protocols = >=TLSv1
 #smtpd_tls_cipherlist *** This feature is available with Postfix version 2.2. It is not used with Postfix 2.3 and later
 #smtpd_tls_ciphers = medium | export | low | medium | high | null 
-#smtpd_tls_mandatory_ciphers = medium | export | low | medium | high | null
+#smtpd_tls_mandatory_ciphers = $smtpd_tls_ciphers
 #smtpd_tls_exclude_ciphers = aNULL, MD5, DES, DES+MD5, AES256-SHA, DES-CB3-MD5
 #smtpd_tls_mandatory_exclude_ciphers = $smtpd_tls_exclude_ciphers
-#smtpd_tls_auth_only = no
-#smtpd_tls_fingerprint_digest = sha256 | md5 | sha1 | sha512
+# This might be already specified int the SASL section
+# The parameter setting "smtpd_tls_security_level = encrypt" implies "smtpd_tls_auth_only = yes".
+#smtpd_tls_auth_only = yes
 #smtpd_tls_loglevel = 0
 #smtpd_tls_received_header = no
 # for Postfix ≥ 2.11 this parameter should generally be left empty. 
 #smtpd_tls_session_cache_database = /var/lib/postfix/tls_session_cache.db
 
-### SMTP CLIENT TLS OPTIONS ###
+
+###########         SMTP CLIENT TLS OPTIONS        ############
 
 # Do not configure client certificates unless you must present client TLS certificates to one or more servers. 
 # Client certificates are not usually needed, and can cause problems in configurations that work well without them. 
 # The recommended setting is to let the defaults stand: 
-# The following feature is available in Postfix 2.2 and later. With Postfix 2.3 and later use smtp_tls_security_level instead. 
-#smtp_use_tls = no
+#smtp_use_tls = no *** Legacy opportunistic TLS option
 #smtp_enforce_tls = no ***Legacy options; You should use smtp_tls_security_level instead
 #smtp_tls_security_level = none | may | encrypt | dane | dane-only | fingerprint | verify | secure
 #smtp_tls_wrappermode = no ***enabling this also implies smtp_tls_security_level = encrypt
-#  require that the remote SMTP server hostname matches the information in the remote SMTP server certificate
+#  Require that the remote SMTP server hostname matches the information in the remote SMTP server certificate
 #smtp_tls_enforce_peername = yes
+# The trusted signing CA's when authenticating the server certificate
 #smtp_tls_CAfile = /etc/postfix/pki/ca.cer
 #smtp_tls_CApath = /etc/postfix/pki/ca/
 # To enable remote SMTP servers to verify the Postfix SMTP client certificate, 
 # the issuing CA certificates must be made available to the server. 
 # You should include the required certificates in the client certificate file, 
-# the client certificate first, then the issuing CA(s) (bottom-up order) 
 # cat client_key.pem client_cert.pem intermediate_CA.pem > chain.pem
-#smtp_tls_cert_file = /etc/postfix/pki/packets.lab.cer
-#smtp_tls_key_file = $smtp_tls_cert_file
+# This file may also contain the Postfix SMTP client private RSA key, 
+# and these may be the same as the Postfix SMTP server RSA certificate and key file.
 # key1, cert1, [chain1], key2, cert2, [chain2], ..., keyN, certN, [chainN].
+#smtp_tls_cert_file = /etc/postfix/pki/client_certs.pem
+#smtp_tls_key_file = $smtp_tls_cert_file
 #smtp_tls_chain_files = /etc/postfix/pki/packets.lab.pem
 #smtp_tls_protocols = !SSLv2, !SSLv3, TLSv1, <=TLSv1.3
 #smtp_tls_mandatory_protocols = $smtp_tls_mandatory_protocols
@@ -185,12 +224,17 @@ smtpd_sasl_exception_networks =
 #smtp_tls_exclude_ciphers =
 # Example of smtp_tls_exclude ciphers ->> aNULL,MD5,DES,DES+MD5,AES256-SHA,DES-CBC3-MD5,kEDH+aRSA
 #smtp_tls_mandatory_exclude_ciphers = $smtp_tls_exclude_ciphers
+# Try to make multiple deliveries per TLS-encrypted connection.
 #smtp_tls_connection_reuse = no
 #smtp_tls_fingerprint_digest = md5 | sha1 | sha256
-
-# List of acceptable remote SMTP server certificate fingerprints 
+# List of acceptable remote SMTP server certificate fingerprints or public key fingerprints
 # for the "fingerprint" TLS security level (smtp_tls_security_level = fingerprint)
+# openssl x509 -noout -fingerprint -sha256 -in cert.pem
+# openssl x509 -in cert.pem -noout -pubkey | openssl pkey -pubin -outform DER | openssl dgst -sha256 -v
+#  At this security level, Certification Authorities are not used, and certificate expiration times are ignored. 
 #smtp_tls_fingerprint_cert_match =
+# cd:fc:d8:db:f8:c4:82:96:6c:...:28:71:e8:f5:8d:a5:0d:9b:d4:a6
+# dd:5c:ef:f5:c3:bc:64:25:36:...:99:36:06:ce:40:ef:de:2e:ad:a4
 #smtp_tls_loglevel = 0
 #smtp_tls_note_starttls_offer = no
 # Optional lookup tables with the Postfix SMTP client TLS security policy by next-hop destination;
@@ -198,36 +242,35 @@ smtpd_sasl_exception_networks =
 #smtp_tls_session_cache_database = /var/lib/postfix/smtp_cache
 
 
-### LOCAL ADDRESS CLASS ###
+#########      LOCAL ADDRESS CLASS      #########
 
 mydestination = sandbox.lab
 local_recipient_maps = proxy:unix:passwd.byname $alias_maps
-alias_maps = hash:/etc/aliases
-alias_database = hash:/etc/aliases
+#local_recipient_maps = hash:/recipient_maps/local_recipient_maps
+alias_maps = hash:alias_maps/aliases
+alias_database = hash:alias_maps/aliases
 local_transport = local:$myhostname
-#luser_relay =
-#Variables available for luser_relay: $domain,$extension,$home,$recipient,$recipient_delimiter,$shell,$user,${name?value},${name:value}
 
 #mailbox_command (default: empty)
 #mailbox_command_maps (default: empty)
 
-# if there are no aliases or .forward files to process by the local agent, but the user is
+# If there are no aliases or .forward files to process by the local agent, but the user is
 # defined in the local unix passwd database,
 # the delivery will be handled by the transport agent specified with the 
 # following two parameters; the message is actually handed to mailbox_transport by the local agent itself
-#mailbox_transport_maps = hash:/path/to/localtransportmaps
+#mailbox_transport_maps = hash:transport_maps/mailbox_transport_maps
 #mailbox_transport = lmtp:remote.lab:254
 
 # if the recipient address is not found by the local_transport 
 # then the message is handed off alltogether to the agent specified by fallback_transport
-#fallback_transport_maps = hash:/etc/postfix/fallback_maps
+#fallback_transport_maps = hash:transport_maps/fallback_transport_maps
 #fallback_transport = agent:host:port
 
 # home_mailbox is overriding mail_spool_directory, and both directives
 # define where in the filesystem the mailboxes can be found
 # if you specify the trailing slash, it means the mailbox is in maildir format
-#mail_spool_directory = /var/spool/mail | /var/spool/mail/
-#home_mailbox = mbox | /maildir | /maildir/
+#mail_spool_directory = /var/spool/mailbox | /var/spool/maildir/
+#home_mailbox = mailbox_file | /Mailbox | /Maildir/
 
 # where the local agent should find .forward files; supports names expansion
 # forward_path = $user/$home/$recipient/$domain
@@ -236,9 +279,9 @@ local_transport = local:$myhostname
 
 # the luser_relay implements sort of a catch_all functionality for the local address class
 # in alias_maps we cannot have a lookupkey with @, so we use luser_relay instead
-# we can use this feature for journalisation
+# Variables available for luser_relay: $domain,$extension,$home,$recipient,$recipient_delimiter,$shell,$user,${name?value},${name:value}
+# we can use this feature for smarthost
 #luser_relay = john.doe@sandbox.lab | $user@$other.host | $local@$other.host
-
 
 # the precedence of local delivery features from high to low is:
 # aliases, .forward, mailbox_transport_maps, mailbox_transport, mailbox_command_maps, mailbox_command,
@@ -252,7 +295,7 @@ local_transport = local:$myhostname
 # The virtual aliases are triggered before queue by the cleanup process, for all email classes
 # So, if you're not using local transport, you will use this for your aliasing needs
 # One thing to remember though, in alias maps, you can use a catch-all @ entry
-#virtual_alias_maps = hash:/etc/postfix/virtual_aliases
+#virtual_alias_maps = hash:alias_maps/virtual_alias_maps
 #virtual_address_length_limit = 1000
 #virtual_alias_expansion_limit = 1000
 #virtual_alias_recursion_limit = 1000
@@ -266,9 +309,7 @@ local_transport = local:$myhostname
 #virtual_transport = lmtp:unix:/patch/name | lmtp:hostname:port
 #virtual_mailbox_base = /var/spool/mail | /var/spool/mail/
 #virtual_mailbox_limit (default: 51200000)
-#virtual_alias_maps = hash:/etc/postfix/virtual_aliases
 #virtual_minimum_uid = 500
-
 # the two lines below specify that all the virtual mailboxes are owned by the same fixed uid and gid
 #virtual_uid_maps = static:5000
 #virtual_git_maps = static:5000
@@ -278,7 +319,7 @@ local_transport = local:$myhostname
 ### VIRTUAL RELAY CLASS ###
 
 #relay_domains = relay.lab
-#relay_recipient_maps = hash:/etc/postfix/relay_recipients
+#relay_recipient_maps = hash:recipient_maps/relay_recipient_maps
 # you can specify relay transport with nexthop or not. If you 
 # don't specify a next hop, DNS querry will be used to find one
 #relay_transport = smtp:[gigi.com]
@@ -294,19 +335,29 @@ local_transport = local:$myhostname
 
 ### CLEANUP PREQUEUE ACTIONS (CANONICAL REWRITE, MASQUERADE, BCC, HEADER/BODY CHECKS) ###
 
+# Cleanup receive messages from smtpd, qmqpd, lmtpd, and pickup daemon, but also messages resubmitted
+# Bounce, Postmaster notifications, Messages forwarded by the local transport agent
+# The processing stages of cleanup are: 
+# Normalization, Canonical Rewrite, Domain Masquerade, Virtual Aliasing, BCC, Header and Body checks
+
 #cleanup_service_name = cleanup
+
+# These append actions are part of the normalization process
+#append_at_myorigin = yes
+#append_dot_mydomain = yes
+
 #receive_override_options = no_unknown_recipient_checks, no_address_mappings, no_milters, no_header_body_checks
 
 #local_header_rewrite_clients = permit_inet_interfaces, permit_mynetworks, permit_sasl_authenticated, permit_tls_clientcerts, static:all
-#remote_header_rewrite_domain = 
+#remote_header_rewrite_domain = invalid.domain
 
 # Canonical maps allow for header and envelope rewrite of both recipient and sender
-#canonical_maps = hash:/etc/postfix/canonical_maps
+#canonical_maps = hash:canonical_maps/canonical_maps
 #canonical_classes = envelope_sender, envelope_recipient, header_sender, header_recipient
 # You can get selective if you want; change only the sender for example
-#recipient_canonical_maps = hash:/etc/postfix/recipient_canonical_maps
+#recipient_canonical_maps = hash:canonical_maps/recipient_canonical_maps
 #recipient_canonical_classes = envelope_recipient, header_recipient
-#sender_canonical_maps = hash:/etc/postfix/sender_canonical_maps
+#sender_canonical_maps = hash:canonical_maps/sender_canonical_maps
 #sender_canonical_classes = envelope_sender, header_sender
 
 # Masquerade is like limited automated rewriting.
@@ -314,6 +365,7 @@ local_transport = local:$myhostname
 #masquerade_domains = sandbox.lab, !nothisone.sandbox.lab
 #masquerade_exceptions = nothisone.sandbox.lab
 
+# These BCC features can be easily used for jurnalization
 #always_bcc (default: empty)
 #recipient_bcc_maps
 #sender_bcc_maps
@@ -332,14 +384,17 @@ message_size_limit = 10240000
 smtpd_recipient_limit = 1000
 smtpd_authorized_xclient_hosts =
 smtpd_authorized_xforward_hosts =
-content_filter = 
+# PostQueue filtering
+#content_filter = 
+# Prequeue filtering (alternative to milter)
+#smtpd_proxy_filter =
 default_filter_nexthop = 
 
 smtpd_helo_required = yes
 strict_rfc821_envelopes = yes
 disable_vrfy_command = yes
 soft_bounce = no
-relay_clientcerts = hash:/etc/postfix/relay_clientcerts
+relay_clientcerts = hash:cert_maps/relay_clientcerts
 
 # Delaying the reject addresses the following:
 # Some clients that do not support terminating the SMTP session early in the conversation
@@ -380,7 +435,8 @@ smtpd_client_restrictions =
 	permit_inet_interfaces, 
 # SASL authenticated clients get a pass here also
 	permit_sasl_authenticated, 
-	permit_tls_all_clientcers, 
+	permit_tls_all_clientcerts, 
+	permit_tls_clientcerts,
 # You can specify more than one reject_rbl_client restriction
 	reject_rbl_client zen.spamhaus.org,
 # Whitelist your clients here; most likely you will host your own dns server for this
