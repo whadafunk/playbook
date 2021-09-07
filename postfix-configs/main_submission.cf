@@ -71,15 +71,15 @@ smtpd_tls_CApath =
 #smtpd_tls_key_file = $smtpd_tls_cert_file
 smtpd_tls_chain_files = pki/mails.bit-soft.ro_chain.pem
 smtpd_tls_ccert_verifydepth = 9
-smtpd_tls_ask_cert = no
-smtpd_tls_req_cert = no
+smtpd_tls_ask_ccert = no
+smtpd_tls_req_ccert = no
 smtpd_tls_fingerprint_digest = sha256
 smtpd_tls_protocols = >=TLSv1, <=TLSv1.3
 smtpd_tls_mandatory_protocols = $smtpd_tls_protocols
 smtpd_tls_ciphers = medium
 smtpd_tls_mandatory_ciphers = $smtpd_tls_ciphers
 smtpd_tls_exclude_ciphers = aNULL, MD5
-smtpd_tls_mandatory_exclude_ciphers = $ smtpd_tls_exclude_ciphers
+smtpd_tls_mandatory_exclude_ciphers = $smtpd_tls_exclude_ciphers
 smtpd_tls_received_header = no
 smtpd_tls_loglevel = 0
 
