@@ -26,7 +26,7 @@
 $ORIGIN abc.com.
 $TTL 300 ; this is the default value
 
-	IN	SOA	ns.abc.com. email_admin.abc.com. (
+@	IN	SOA	ns.abc.com. email_admin.abc.com. (
 			100	; Serial
 			7200	; Refresh
 			3600	; Retry
