@@ -29,8 +29,8 @@ smtpd_banner=$myhostname ESMTP $mail_name (Custom/GNU)
 
 
 
-mydomain = sandbox.lab
-myhostname = mx.sandbox.lab
+mydomain = packets.lab
+myhostname = mx.packets.lab
 myorigin = $myhostname
 
 #mynetworks_style = subnet | class | host
