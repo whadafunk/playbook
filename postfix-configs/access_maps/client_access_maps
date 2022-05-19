@@ -20,8 +20,8 @@
 # user@domain -> domain.ltd -> .domain.ltd ( the subdomain matching
 #	depends on the parent_domain_matches_subdomains )
 # user@ - matches all mail addresses with the specified user part
-# domain.ltd -> .domain.ltd -> net.work.addr.ess -> net.work.addr
-# net.work -> net
+# domain.ltd -> .domain.ltd 
+# net.work.addr.ess -> net.work.addr -> net.work -> net
 
 # The actions accepted on the RHS are the following:
 # OK 
