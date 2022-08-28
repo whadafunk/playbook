@@ -75,6 +75,28 @@ syslog_name = ${multi_instance_name?{$multi_instance_name}:{postfix}}
 # debug_peer_list = 192.168.1.1, 192.168.1.2
 
 
+################   SMTP CLIENT SASL AUTHENTICATION  ################
+
+# smtp_sasl_auth_enable = no
+# smtp_sasl_type = cyrus
+
+# A HELPER FOR THE SASL LIBRARY TO FIND THE CONFIG FILE
+# smtp_sasl_path =
+
+# POSTFIX SMTP CLIENT LOOKUP TABLES WITH ONE USERNAME:PASSWORD ENTRY PER SENDER, REMOTE HOSTNAME OR NEXT-HOP DOMAIN. 
+# smtp_sasl_password_maps = btree:sasl/smtp_sasl_password_maps
+
+# PREVENT REPEATED sasl AUTHENTICATION FAILURES WITH THE SAME REMOTE smtp SERVER HOSTNAME, USERNAME AND PASSWORD.
+# smtp_sasl_auth_cache_name = btree:/var/lib/postfix/smtp_sasl_auth_cache
+
+# FROM THE LIST OF SUPPORTED MECHANISM FROM SERVER AND CLIENT, RESTRICT EVEN MORE TO THE ONES HERE
+# smtp_sasl_mechanism_filter = plain, login, !gssapi
+
+# YOU CAN ALSO RESTRICT MECHANISMS GENERICALLY BY SPECIFYING CATEGORIES, LIKE BELOW
+# smtp_sasl_security_options = noplaintext,noanonymous,noactive,nodictionary
+# smtp_sasl_tls_security_options = $smtp_sasl_security_options
+
+
 ###############    SMTPD  SERVER SASL AUTHENTICATION   ##############
 
 # smtpd_sasl_auth_enable = no
@@ -171,27 +193,77 @@ syslog_name = ${multi_instance_name?{$multi_instance_name}:{postfix}}
 # smtpd_tls_session_cache_database = btree:/var/lib/postfix/tls_session_cache.db
 
 
+###########         SMTP CLIENT TLS OPTIONS        ############
+
+# DO NOT CONFIGURE CLIENT CERTIFICATES UNLESS YOU MUST PRESENT CLIENT TLS CERTIFICATES TO ONE OR MORE SERVERS. 
+# CLIENT CERTIFICATES ARE NOT USUALLY NEEDED, AND CAN CAUSE PROBLEMS IN CONFIGURATIONS THAT WORK WELL WITHOUT THEM. 
+# THE RECOMMENDED SETTING IS TO LET THE DEFAULTS STAND
+# smtp_use_tls = no *** Legacy opportunistic TLS option
+# smtp_enforce_tls = no ***Legacy options; You should use smtp_tls_security_level instead
+# smtp_tls_security_level = none | may | encrypt | dane | dane-only | fingerprint | verify | secure
+# smtp_tls_wrappermode = no ***enabling this also implies smtp_tls_security_level = encrypt
+# REQUIRE THAT THE REMOTE SMTP SERVER HOSTNAME MATCHES THE INFORMATION IN THE REMOTE SMTP SERVER CERTIFICATE
+# smtp_tls_enforce_peername = yes
+# THE TRUSTED SIGNING CA'S WHEN AUTHENTICATING THE SERVER CERTIFICATE
+# smtp_tls_CAfile = /etc/postfix/pki/ca.cer
+# smtp_tls_CApath = /etc/postfix/pki/ca/
+# TO ENABLE REMOTE SMTP SERVERS TO VERIFY THE POSTFIX SMTP CLIENT CERTIFICATE, 
+# THE ISSUING CA CERTIFICATES MUST BE MADE AVAILABLE TO THE SERVER. 
+# YOU SHOULD INCLUDE THE REQUIRED CERTIFICATES IN THE CLIENT CERTIFICATE FILE, 
+# CAT CLIENT_KEY.PEM CLIENT_CERT.PEM INTERMEDIATE_CA.PEM > CHAIN.PEM
+# THIS FILE MAY ALSO CONTAIN THE POSTFIX SMTP CLIENT PRIVATE RSA KEY, 
+# AND THESE MAY BE THE SAME AS THE POSTFIX SMTP SERVER RSA CERTIFICATE AND KEY FILE.
+# KEY1, CERT1, [CHAIN1], KEY2, CERT2, [CHAIN2], ..., KEYN, CERTN, [CHAINN].
+# smtp_tls_cert_file = /etc/postfix/pki/client_certs.pem
+# smtp_tls_key_file = $smtp_tls_cert_file
+# smtp_tls_chain_files = /etc/postfix/pki/packets.lab.pem
+# smtp_tls_protocols = !SSLv2, !SSLv3, TLSv1, <=TLSv1.3
+# smtp_tls_mandatory_protocols = $smtp_tls_mandatory_protocols
+# smtp_tls_cipherlist = ***obsolete
+# smtp_tls_ciphers = medium | export | low | high | null
+# smtp_tls_mandatory_ciphers = medium
+# smtp_tls_exclude_ciphers =
+# EXAMPLE OF SMTP_TLS_EXCLUDE CIPHERS ->> aNULL,MD5,DES,DES+MD5,AES256-SHA,DES-CBC3-MD5,kEDH+aRSA
+# smtp_tls_mandatory_exclude_ciphers = $smtp_tls_exclude_ciphers
+# TRY TO MAKE MULTIPLE DELIVERIES PER TLS-ENCRYPTED CONNECTION.
+# smtp_tls_connection_reuse = no
+# smtp_tls_fingerprint_digest = md5 | sha1 | sha256
+# LIST OF ACCEPTABLE REMOTE SMTP SERVER CERTIFICATE FINGERPRINTS OR PUBLIC KEY FINGERPRINTS
+# FOR THE "FINGERPRINT" TLS SECURITY LEVEL (SMTP_TLS_SECURITY_LEVEL = FINGERPRINT)
+# openssl x509 -noout -fingerprint -sha256 -in cert.pem
+# openssl x509 -in cert.pem -noout -pubkey | openssl pkey -pubin -outform DER | openssl dgst -sha256 -v
+#  AT THIS SECURITY LEVEL, CERTIFICATION AUTHORITIES ARE NOT USED, AND CERTIFICATE EXPIRATION TIMES ARE IGNORED. 
+# smtp_tls_fingerprint_cert_match =
+#  cd:fc:d8:db:f8:c4:82:96:6c:...:28:71:e8:f5:8d:a5:0d:9b:d4:a6
+#  dd:5c:ef:f5:c3:bc:64:25:36:...:99:36:06:ce:40:ef:de:2e:ad:a4
+# smtp_tls_loglevel = 0
+# smtp_tls_note_starttls_offer = no
+# OPTIONAL LOOKUP TABLES WITH THE POSTFIX SMTP CLIENT TLS SECURITY POLICY BY NEXT-HOP DESTINATION;
+# smtp_tls_policy_maps =
+# smtp_tls_session_cache_database = btree:/var/lib/postfix/smtp_cache
+
+
 #########      LOCAL ADDRESS CLASS      #########
 
 mydestination = sandbox.lab
 local_recipient_maps = proxy:unix:passwd.byname $alias_maps
-# local_recipient_maps = hash:maps_recipient/local_recipient_maps
-alias_maps = hash:maps_alias/aliases
-alias_database = hash:maps_alias/aliases
+# local_recipient_maps = hash:/etc/postfix/maps_recipient/local_recipient_maps
+alias_maps = hash:/etc/postfix/maps_alias/aliases
+alias_database = hash:/etc/postfix/maps_alias/aliases
 # local_transport = local:$myhostname
 
 # mailbox_command =
-# mailbox_command_maps = hash:maps_transport/mailbox_command_maps
+# mailbox_command_maps = hash:/etc/postfix/maps_transport/mailbox_command_maps
 
 # IF THERE ARE NO ALIASES OR .FORWARD FILES TO PROCESS BY THE LOCAL AGENT, BUT THE USER IS
 # DEFINED IN THE LOCAL UNIX PASSWD DATABASE, THE DELIVERY WILL BE HANDLED BY THE TRANSPORT AGENT SPECIFIED
 # WITH THE FOLLOWING TWO PARAMETERS; THE MESSAGE IS ACTUALLY HANDED TO MAILBOX_TRANSPORT BY THE LOCAL AGENT ITSELF
-# mailbox_transport_maps = hash:maps_transport/mailbox_transport_maps
+# mailbox_transport_maps = hash:/etc/postfix/maps_transport/mailbox_transport_maps
 # mailbox_transport = lmtp:remote.lab:254
 
 # IF THE RECIPIENT ADDRESS IS NOT FOUND BY THE LOCAL_TRANSPORT 
 # THEN THE MESSAGE IS HANDED OFF ALLTOGETHER TO THE AGENT SPECIFIED BY FALLBACK_TRANSPORT
-# fallback_transport_maps = hash:maps_transport/fallback_transport_maps
+# fallback_transport_maps = hash:/etc/postfix/maps_transport/fallback_transport_maps
 # fallback_transport = agent:host:port
 
 # HOME_MAILBOX IS OVERRIDING MAIL_SPOOL_DIRECTORY, AND BOTH DIRECTIVES WHERE THE MAILBOXES CAN BE FOUND
@@ -222,7 +294,7 @@ alias_database = hash:maps_alias/aliases
 # THE VIRTUAL ALIASES ARE TRIGGERED BEFORE QUEUE BY THE CLEANUP PROCESS, FOR ALL EMAIL CLASSES
 # SO, IF YOU'RE NOT USING LOCAL TRANSPORT, YOU WILL USE THIS FOR YOUR ALIASING NEEDS
 # ONE THING TO REMEMBER THOUGH, IN ALIAS MAPS, YOU CAN USE A CATCH-ALL @ ENTRY
-# virtual_alias_maps = hash:maps_alias/virtual_alias_maps
+# virtual_alias_maps = hash:/etc/postfix/maps_alias/virtual_alias_maps
 # virtual_address_length_limit = 1000
 # virtual_alias_expansion_limit = 1000
 # virtual_alias_recursion_limit = 1000
@@ -232,7 +304,7 @@ alias_database = hash:maps_alias/aliases
 
 # virtual_maps  ***Legacy option; This was replaced by virtual_mailbox_domains and virtual_mailbox_maps
 # virtual_mailbox_domains = virtual.lab
-# virtual_mailbox_maps = hash:maps_virtual_mailbox/virtual_mailbox_maps
+# virtual_mailbox_maps = hash:/etc/postfix/maps_virtual_mailbox/virtual_mailbox_maps
 # virtual_transport = lmtp:unix:/patch/name | lmtp:hostname:port
 # virtual_mailbox_base = /var/spool/mail | /var/spool/mail/
 # virtual_mailbox_limit (default: 51200000)
@@ -246,7 +318,7 @@ alias_database = hash:maps_alias/aliases
 ### VIRTUAL RELAY CLASS ###
 
 # relay_domains = relay.lab
-# relay_recipient_maps = hash:maps_recipient/relay_recipient_maps
+# relay_recipient_maps = hash:/etc/postfix/maps_recipient/relay_recipient_maps
 # YOU CAN SPECIFY RELAY TRANSPORT WITH NEXTHOP OR NOT. IF YOU 
 # DON'T SPECIFY A NEXT HOP, DNS QUERRY WILL BE USED TO FIND ONE
 # relay_transport = smtp:[gigi.com]
@@ -279,12 +351,12 @@ alias_database = hash:maps_alias/aliases
 # remote_header_rewrite_domain = invalid.domain
 
 # CANONICAL MAPS ALLOW FOR HEADER AND ENVELOPE REWRITE OF BOTH RECIPIENT AND SENDER
-# canonical_maps = hash:maps_canonical/canonical_maps
+# canonical_maps = hash:/etc/postfix/maps_canonical/canonical_maps
 # canonical_classes = envelope_sender, envelope_recipient, header_sender, header_recipient
 # YOU CAN GET SELECTIVE IF YOU WANT; CHANGE ONLY THE SENDER FOR EXAMPLE
-# recipient_canonical_maps = hash:maps_canonical/recipient_canonical_maps
+# recipient_canonical_maps = hash:/etc/postfix/maps_canonical/recipient_canonical_maps
 # recipient_canonical_classes = envelope_recipient, header_recipient
-# sender_canonical_maps = hash:maps_canonical/sender_canonical_maps
+# sender_canonical_maps = hash:/etc/postfix/maps_canonical/sender_canonical_maps
 # sender_canonical_classes = envelope_sender, header_sender
 # enable_original_recipient (default: yes)
 
@@ -322,7 +394,7 @@ smtpd_helo_required = yes
 strict_rfc821_envelopes = yes
 disable_vrfy_command = yes
 soft_bounce = no
-# relay_clientcerts = hash:maps_cert/relay_clientcerts
+# relay_clientcerts = hash:/etc/postfix/maps_cert/relay_clientcerts
 
 # Delaying the reject addresses the following:
 # Some clients that do not support terminating the SMTP session early in the conversation
@@ -353,10 +425,10 @@ smtpd_reject_unlisted_sender = no
 smtpd_client_restrictions =  	
 # Match on client ip/hostname/parent_hostname/networks
 # Also you have variants for a, mx, ns, and their reverse corespondents
-#	check_client_access hash:maps_access/client_access_maps, 
+#	check_client_access hash:/etc/postfix/maps_access/client_access_maps, 
 # Match on sasl authenticated user name
-#	check_sasl_access hash:maps_access/sasl_access_maps, 
-#	check_ccert_access hash:maps_cert/ccert_access_maps,
+#	check_sasl_access hash:/etc/postfix/maps_access/sasl_access_maps, 
+#	check_ccert_access hash:/etc/postfix/maps_cert/ccert_access_maps,
 # IP's included in mynetworks and inet_interfaces get a pass here
 # Also these ip conditions also work for helo
 #	permit_mynetworks, 
@@ -381,7 +453,7 @@ smtpd_client_restrictions =
 smtpd_helo_restrictions = 
 # Match on helo hostname and parent domains;
 # Also we have variants for a, mx, and ns
-#	check_helo_access hash:maps_access/helo_access_maps,
+#	check_helo_access hash:/etc/postfix/maps_access/helo_access_maps,
 # Invalid HELO hostnames
 #	reject_invalid_helo_hostname,
 # No A or MX records found in DNS for the hostname
@@ -398,7 +470,7 @@ smtpd_helo_restrictions =
 smtpd_sender_restrictions = 
 # Match on MAIL FROM address, domain, parent domains, or @localpart
 # We also have the a, mx, and ns variants
-#	check_sender_access hash:maps_access/sender_access_maps,
+#	check_sender_access hash:/etc/postfix/maps_access/sender_access_maps,
 # Reject if MAIL FROM matches a key in smtpd_sender_login_maps but the user is not logged in
 # Reject loged in users that do not match any MAIL FROM in sender_login_maps
 # Reject if MAIL FROM matches a key in smtpd_sender_login_maps but the mapped value doesn't match user name
@@ -425,7 +497,7 @@ smtpd_sender_restrictions =
 smtpd_recipient_restrictions =
 # Match on RCPT TO address, domain, parent domains, or @localpart
 # We also have the a, mx and ns versions of access_map
-#	check_recipient_access hash:maps_access/recipient_access_maps,
+#	check_recipient_access hash:/etc/postfix/maps_access/recipient_access_maps,
 # Authorized destinations are all the local, virtual_alias, virtual_mailbox and relay classes
 	permit_auth_destination,
 	reject_unauth_destination,
