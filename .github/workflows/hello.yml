@@ -1,0 +1,29 @@
+# This is a basic workflow to help you get started with Actions
+
+name: explore
+
+on:
+  push:
+    branches: [ "master" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  hello:
+    runs-on: ubuntu-latest
+    steps:
+      - name: try ifconfig
+        run: ifconfig
+      - name: try iproute link
+        run: ip -d link ls
+      - name: try iproute address
+        run: ip -d address ls
+
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+
+      - name: List directory after checkout
+        run: ls -l
+      - name: display git status
+        run: git status
