@@ -1,0 +1,17 @@
+#!/bin/bash
+
+DOCKER_NAME=container_name
+DOCKER_PATH=$(pwd)
+DOCKER_NETWORK=br-lan
+LAN_NETWORK=eth0
+
+docker container run --interactive --tty \
+	--name ${DOCKER_NAME} \
+	--hostname ${DOCKER_NAME} \
+	--detach \
+	--restart unless-stopped \
+	--network ${DOCKER_NETWORK} \
+	--mount type=bind,source=,target= \
+	--env TZ="Europe/Bucharest" \
+	docker/image
+
