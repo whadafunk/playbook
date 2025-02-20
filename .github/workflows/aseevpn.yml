@@ -26,4 +26,3 @@ jobs:
         run: ping -3 10.148.0.100
       - name Ping something in the same network
         run: ping -3 10.148.0.8
-
