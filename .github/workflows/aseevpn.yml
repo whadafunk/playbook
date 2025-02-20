@@ -23,6 +23,6 @@ jobs:
           config_file: .github/workflows/opsvpn.ovpn
           client_key: ${{ secrets.OPSVPN_KEY }}
       - name: Ping Something local
-        run: ping -3 10.148.0.100
+        run: ping -c 3 10.148.0.100
       - name: Ping something in the same network
-        run: ping -3 10.148.0.8
+        run: ping -c 3 10.148.0.8
