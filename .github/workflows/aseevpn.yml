@@ -32,8 +32,8 @@ jobs:
         run: ping -c 3 10.148.0.8
       - name: Ping UTMS
         run: |
-           ping -c 3 10.148.2.1
            ping -c 3 10.148.2.10
+           traceroute -n 10.148.2.10
       - name: ping PNB
         run: |
            ping -c 3 10.148.4.1
