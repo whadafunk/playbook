@@ -22,7 +22,17 @@ jobs:
         with:
           config_file: .github/workflows/opsvpn.ovpn
           client_key: ${{ secrets.OPSVPN_KEY }}
+      - name: show network
+        run: ip address show
+        run: ip route show
       - name: Ping Something local
         run: ping -c 3 10.148.0.100
       - name: Ping something in the same network
         run: ping -c 3 10.148.0.8
+      - name: Ping UTMS
+        run: ping -c 3 10.148.2.1
+        run: ping -c 3 10.148.2.10
+      - name: ping PNB
+        run: ping -c 3 10.148.4.1
+        run: ping -c 3 10.148.4.3
+        run: traceroute -n 10.148.4.3
